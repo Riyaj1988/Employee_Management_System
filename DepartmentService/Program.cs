@@ -10,6 +10,7 @@ using DepartmentService.Infrastructure.Persistence.Repositories;
 using Microsoft.EntityFrameworkCore;
 
 using Shared.Logging;
+using DepartmentService.Domain;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -18,8 +19,10 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddDbContext<DepartmentDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-builder.Logging.AddCentralLogger("DepartmentService", builder.Configuration["LoggingServiceUrl"] ?? "http://localhost:5017/logs");
-
+builder.Services.AddHttpClient<ILogs, Logs>(client =>
+{
+    client.BaseAddress = new Uri(builder.Configuration["LoggingServiceUrl"] ?? "https://localhost:7158");
+});
 // MediatR + Pipeline Behaviors
 //builder.Services.AddMediatR(cfg => {
 //    cfg.RegisterServicesFromAssembly(Assembly.GetExecutingAssembly());

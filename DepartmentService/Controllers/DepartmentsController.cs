@@ -1,5 +1,6 @@
 using DepartmentService.Application.Common.Interfaces;
 using DepartmentService.Application.DTOs;
+using DepartmentService.Domain;
 using DepartmentService.Domain.Entities;
 using MapsterMapper;
 using Microsoft.AspNetCore.Mvc;
@@ -12,19 +13,28 @@ public class DepartmentsController : ControllerBase
 {
     private readonly IDepartmentRepository _repository;
     private readonly IMapper _mapper;
-    private readonly ILogger<DepartmentsController> _logger;
+    private readonly ILogs _logger;
 
-    public DepartmentsController(IDepartmentRepository repository, IMapper mapper, ILogger<DepartmentsController> logger)
+    public DepartmentsController(IDepartmentRepository repository, IMapper mapper, ILogs logs)
     {
         _repository = repository;
         _mapper = mapper;
-        _logger = logger;
+        _logger = logs;
     }
 
     [HttpGet]
     public async Task<ActionResult<IEnumerable<DepartmentDto>>> GetAll(CancellationToken ct)
     {
-        _logger.LogInformation("Fetching all departments");
+        await _logger.SendLogAsync(new
+        {
+            serviceName = "DepartmentService",
+            correlationId = Guid.NewGuid(),
+            logLevel = "Information",
+            message = "Get Details",
+            exception = "",
+            userName = "",
+            timestamp = new DateTime()
+        });
         var departments = await _repository.GetAllAsync(ct);
         return Ok(_mapper.Map<IEnumerable<DepartmentDto>>(departments));
     }
@@ -42,8 +52,19 @@ public class DepartmentsController : ControllerBase
     public async Task<ActionResult<DepartmentDto>> Create(CreateDepartmentDto dto, CancellationToken ct)
     {
         var department = _mapper.Map<Department>(dto);
-        _logger.LogInformation("Creating new department: {DepartmentName}", department.Name);
+        await _logger.SendLogAsync(new
+        {
+            serviceName = "DepartmentService",
+            correlationId = Guid.NewGuid(),
+            logLevel = "Information",
+            message = $"Creating new department: {department.Name}",
+            exception = "",
+            userName = "",
+            timestamp = new DateTime()
+        });
         await _repository.AddAsync(department, ct);
+
+
         await _repository.SaveChangesAsync(ct);
 
         var result = _mapper.Map<DepartmentDto>(department);
