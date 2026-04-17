@@ -7,8 +7,13 @@ namespace DepartmentService.Infrastructure.Persistence.Repositories;
 public class DepartmentRepository : IDepartmentRepository
 {
     private readonly DepartmentDbContext _context;
+    private readonly ILogger<DepartmentRepository> _logger;
 
-    public DepartmentRepository(DepartmentDbContext context) => _context = context;
+    public DepartmentRepository(DepartmentDbContext context, ILogger<DepartmentRepository> logger)
+    {
+        _context = context;
+        _logger = logger;
+    }
 
     public async Task<IEnumerable<Department>> GetAllAsync(CancellationToken ct = default)
         => await _context.Departments
@@ -25,7 +30,10 @@ public class DepartmentRepository : IDepartmentRepository
         => await _context.Departments.AnyAsync(d => d.DepartmentId == id, ct);
 
     public async Task AddAsync(Department department, CancellationToken ct = default)
-        => await _context.Departments.AddAsync(department, ct);
+    {
+        _logger.LogInformation("Repository: Adding department {Name}", department.Name);
+        await _context.Departments.AddAsync(department, ct);
+    }
 
     public void Update(Department department)
         => _context.Departments.Update(department);

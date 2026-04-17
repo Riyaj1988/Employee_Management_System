@@ -9,12 +9,16 @@ using DepartmentService.Infrastructure.Persistence;
 using DepartmentService.Infrastructure.Persistence.Repositories;
 using Microsoft.EntityFrameworkCore;
 
+using Shared.Logging;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 
 builder.Services.AddDbContext<DepartmentDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+builder.Logging.AddCentralLogger("DepartmentService", builder.Configuration["LoggingServiceUrl"] ?? "http://localhost:5017/logs");
 
 // MediatR + Pipeline Behaviors
 //builder.Services.AddMediatR(cfg => {

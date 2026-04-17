@@ -12,16 +12,19 @@ public class DepartmentsController : ControllerBase
 {
     private readonly IDepartmentRepository _repository;
     private readonly IMapper _mapper;
+    private readonly ILogger<DepartmentsController> _logger;
 
-    public DepartmentsController(IDepartmentRepository repository, IMapper mapper)
+    public DepartmentsController(IDepartmentRepository repository, IMapper mapper, ILogger<DepartmentsController> logger)
     {
         _repository = repository;
         _mapper = mapper;
+        _logger = logger;
     }
 
     [HttpGet]
     public async Task<ActionResult<IEnumerable<DepartmentDto>>> GetAll(CancellationToken ct)
     {
+        _logger.LogInformation("Fetching all departments");
         var departments = await _repository.GetAllAsync(ct);
         return Ok(_mapper.Map<IEnumerable<DepartmentDto>>(departments));
     }
@@ -39,6 +42,7 @@ public class DepartmentsController : ControllerBase
     public async Task<ActionResult<DepartmentDto>> Create(CreateDepartmentDto dto, CancellationToken ct)
     {
         var department = _mapper.Map<Department>(dto);
+        _logger.LogInformation("Creating new department: {DepartmentName}", department.Name);
         await _repository.AddAsync(department, ct);
         await _repository.SaveChangesAsync(ct);
 
