@@ -58,6 +58,9 @@ namespace EmployeeService.Controllers
         [HttpPost]
         public async Task<IActionResult> Create(EmployeeCreateDto dto)
         {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
             var employee = new Employee
             {
                 Name = dto.Name,
@@ -82,9 +85,13 @@ namespace EmployeeService.Controllers
                     employee.Salary));
         }
 
+
         [HttpPut("{id}")]
         public async Task<IActionResult> Update(int id, EmployeeUpdateDto dto)
         {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
             var employee = await _db.Employees.FindAsync(id);
             if (employee == null) return NotFound();
 
@@ -99,6 +106,7 @@ namespace EmployeeService.Controllers
 
             return NoContent();
         }
+
 
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(int id)
@@ -115,8 +123,13 @@ namespace EmployeeService.Controllers
         }
 
         private string GetCorrelationId()
-            => Request.Headers["X-Correlation-Id"].FirstOrDefault()
-               ?? Guid.NewGuid().ToString();
+        {
+            var httpContext = ControllerContext?.HttpContext;
+
+            return httpContext?.Request?.Headers["X-Correlation-Id"].FirstOrDefault()
+                   ?? Guid.NewGuid().ToString();
+        }
+
     }
 }
 
