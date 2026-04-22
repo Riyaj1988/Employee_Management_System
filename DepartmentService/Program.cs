@@ -23,15 +23,12 @@ builder.Services.AddDbContext<DepartmentDbContext>(options =>
 
 // Logging setup (Plug & Play)
 builder.AddCentralLogging("DepartmentService");
+builder.Logging.AddCentralLogger(
+    serviceName: "DepartmentService",
+    loggingUrl: builder.Configuration["LoggingServiceUrl"]!
+);
 
-// MediatR + Pipeline Behaviors
-//builder.Services.AddMediatR(cfg => {
-//    cfg.RegisterServicesFromAssembly(Assembly.GetExecutingAssembly());
-//    cfg.AddBehavior(typeof(IPipelineBehavior<,>), typeof(ValidationPipelineBehavior<,>));
-//});
 
-// FluentValidation
-//builder.Services.AddValidatorsFromAssembly(Assembly.GetExecutingAssembly());
 
 // Mapster Configuration
 var config = TypeAdapterConfig.GlobalSettings;
@@ -79,4 +76,4 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
-
+

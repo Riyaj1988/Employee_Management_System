@@ -17,7 +17,7 @@ namespace Shared.Logging
             _serviceName = serviceName;
         }
 
-        public async Task SendLogAsync(LogEntryDto log)
+        public Task SendLogAsync(LogEntryDto log)
         {
             // Auto-populate if missing or empty
             if (string.IsNullOrWhiteSpace(log.ServiceName)) 
@@ -52,9 +52,11 @@ namespace Shared.Logging
             {
                 Console.WriteLine($"[LOG FALLBACK] Internal error in Log Sender: {ex.Message}");
             }
+
+            return Task.CompletedTask;
         }
 
-        public async Task SendLogAsync(string message, string logLevel = "Information", string? exception = null)
+        public Task SendLogAsync(string message, string logLevel = "Information", string? exception = null)
         {
             var log = new LogEntryDto
             {
@@ -62,7 +64,7 @@ namespace Shared.Logging
                 LogLevel = logLevel,
                 Exception = exception
             };
-            await SendLogAsync(log);
+            return SendLogAsync(log);
         }
     }
 }
