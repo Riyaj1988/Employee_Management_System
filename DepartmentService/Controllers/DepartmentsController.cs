@@ -5,11 +5,13 @@ using DepartmentService.Domain.Entities;
 using MapsterMapper;
 using Microsoft.AspNetCore.Mvc;
 using Shared.Logging;
+using Microsoft.AspNetCore.Authorization;
 
 namespace DepartmentService.Controllers;
 
 [Route("api/[controller]")]
 [ApiController]
+[Authorize]
 public class DepartmentsController : ControllerBase
 {
     private readonly IDepartmentRepository _repository;
