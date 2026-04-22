@@ -2,15 +2,17 @@
 using EmployeeService.DTOs;
 using EmployeeService.Models;
 using MassTransit;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Shared.Logging;
 using Shared.DTOs;
+using Shared.Logging;
 
 namespace EmployeeService.Controllers
 {
     [ApiController]
     [Route("employees")]
+    [Authorize]
     public class EmployeeController : ControllerBase
     {
         private readonly EmployeeDbContext _db;
