@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Shared.DTOs;
 using System.Net.Http.Json;
+using Shared.Utilities;
 
 namespace Shared.Logging
 {
@@ -25,8 +26,21 @@ namespace Shared.Logging
 
         public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
 
-        // Only log Warnings and Errors automatically to prevent database bloat
-        public bool IsEnabled(LogLevel level) => level >= LogLevel.Warning;
+        // Log Application Information, but only Warning/Error for System/Infra logs
+        public bool IsEnabled(LogLevel level)
+        {
+            // Suppress Information logs for internal infrastructure to keep the DB clean
+            if (_category.StartsWith("Microsoft") || 
+                _category.StartsWith("MassTransit") || 
+                _category.StartsWith("System"))
+            {
+                return level >= LogLevel.Warning;
+            }
+
+            return level >= LogLevel.Information;
+        }
+
+
 
         public void Log<TState>(LogLevel level, EventId id, TState state, Exception? ex, Func<TState, Exception?, string> fmt)
         {
@@ -42,7 +56,7 @@ namespace Shared.Logging
                 UserName = _access.HttpContext?.User?.Identity?.Name 
                     ?? _access.HttpContext?.User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
                     ?? _access.HttpContext?.User?.FindFirst("sub")?.Value,
-                Timestamp = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, TimeZoneInfo.FindSystemTimeZoneById("India Standard Time"))
+                Timestamp = TimeHelper.GetIstNow()
             };
 
             // Send in the background without blocking the app

@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using Shared.Utilities;
 
 namespace DepartmentService.Domain.Entities;
 
@@ -14,7 +15,7 @@ public class Department
     [MaxLength(250)]
     public string? Description { get; set; }
 
-    public DateTime CreatedDate { get; set; } = DateTime.UtcNow;
+    public DateTime CreatedDate { get; set; } = TimeHelper.GetIstNow();
 
     public DepartmentStats? Stats { get; set; }
 

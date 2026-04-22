@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Http;
 using Shared.DTOs;
 using System.Net.Http.Json;
+using Shared.Utilities;
 
 namespace Shared.Logging
 {
@@ -24,7 +25,7 @@ namespace Shared.Logging
                 log.ServiceName = _serviceName;
 
             log.Timestamp = log.Timestamp == default 
-                ? TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, TimeZoneInfo.FindSystemTimeZoneById("India Standard Time")) 
+                ? TimeHelper.GetIstNow() 
                 : log.Timestamp;
 
             // Use existing correlation ID or create a new one for this request

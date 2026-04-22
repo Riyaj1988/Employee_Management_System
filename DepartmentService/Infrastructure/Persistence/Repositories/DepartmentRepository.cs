@@ -1,6 +1,7 @@
 using DepartmentService.Application.Common.Interfaces;
 using DepartmentService.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
+using Shared.Utilities;
 
 namespace DepartmentService.Infrastructure.Persistence.Repositories;
 
@@ -66,7 +67,7 @@ public class DepartmentRepository : IDepartmentRepository
             {
                 DepartmentId = departmentId,
                 EmployeeCount = Math.Max(0, delta),
-                LastUpdated = DateTime.UtcNow
+                LastUpdated = TimeHelper.GetIstNow()
             };
             await _context.DepartmentStats.AddAsync(stats, ct);
         }
@@ -74,7 +75,7 @@ public class DepartmentRepository : IDepartmentRepository
         {
             _logger.LogInformation("Repository: Updating existing stats for department {Id}. Old count: {Count}", departmentId, stats.EmployeeCount);
             stats.EmployeeCount = Math.Max(0, stats.EmployeeCount + delta);
-            stats.LastUpdated = DateTime.UtcNow;
+            stats.LastUpdated = TimeHelper.GetIstNow();
             _context.DepartmentStats.Update(stats);
         }
     }

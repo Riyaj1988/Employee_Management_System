@@ -1,4 +1,4 @@
-﻿using EmployeeService.Data;
+using EmployeeService.Data;
 using Microsoft.EntityFrameworkCore;
 using Shared.Logging;
 using Shared.Middleware;
@@ -6,12 +6,24 @@ using MassTransit;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using Microsoft.OpenApi.Models;
 using DepartmentService.Infrastructure.Persistence;
 using DepartmentService.Infrastructure.Messaging;
+
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
+
+// Register Logging EARLY to ensure other services can use it
+builder.AddCentralLogging("EmployeeService");
+builder.Logging.AddCentralLogger(
+    serviceName: "EmployeeService",
+    loggingUrl: builder.Configuration["LoggingServiceUrl"]!
+);
+Console.WriteLine($"[STARTUP] Logging Service URL: {builder.Configuration["LoggingServiceUrl"]}");
+
+
 
 builder.Services.AddDbContext<EmployeeDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("Database")));
@@ -19,11 +31,20 @@ builder.Services.AddDbContext<EmployeeDbContext>(options =>
 builder.Services.AddDbContext<DepartmentDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
+
+
+
 builder.Services.AddMassTransit(x =>
 {
     x.AddConsumer<EmployeeEventConsumer>();
+
     x.UsingInMemory((context, cfg) =>
     {
+        cfg.ReceiveEndpoint("employee-event-queue", e =>
+        {
+            e.ConfigureConsumer<EmployeeEventConsumer>(context);
+        });
+
         cfg.ConfigureEndpoints(context);
     });
 });
@@ -53,14 +74,39 @@ builder.Services.AddAuthorization();
 
 
 
-builder.Services.AddSwaggerGen();
-builder.AddCentralLogging("EmployeeService");
-builder.Logging.AddCentralLogger(
-    serviceName: "EmployeeService",
-    loggingUrl: builder.Configuration["LoggingServiceUrl"]!
-);
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new OpenApiInfo { Title = "EmployeeService API", Version = "v1" });
+
+    // Enable JWT Authentication in Swagger
+    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Name = "Authorization",
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT",
+        In = ParameterLocation.Header,
+        Description = "JWT Authorization header using the Bearer scheme."
+    });
+
+    c.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
+            },
+            new string[] {}
+        }
+    });
+});
 
 var app = builder.Build();
+
 
 app.UseSwagger();
 app.UseSwaggerUI();

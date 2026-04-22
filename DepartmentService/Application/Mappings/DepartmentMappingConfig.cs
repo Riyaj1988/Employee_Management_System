@@ -2,6 +2,7 @@ using System;
 using DepartmentService.Application.DTOs;
 using DepartmentService.Domain.Entities;
 using Mapster;
+using Shared.Utilities;
 
 namespace DepartmentService.Application.Mappings;
 
@@ -16,7 +17,7 @@ public class DepartmentMappingConfig : IRegister
 
         // CreateDepartmentDto → Department
         config.NewConfig<CreateDepartmentDto, Department>()
-            .Map(dest => dest.CreatedDate, _ => DateTime.UtcNow)
+            .Map(dest => dest.CreatedDate, _ => TimeHelper.GetIstNow())
             .Ignore(dest => dest.DepartmentId)
             .Ignore(dest => dest.Stats!);
 
