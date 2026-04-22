@@ -39,12 +39,14 @@ namespace Shared.Logging
                 Message = $"[{_category}] {fmt(state, ex)}",
                 Exception = ex?.ToString(),
                 CorrelationId = _access.HttpContext?.Request.Headers["X-Correlation-Id"].ToString(),
-                UserName = _access.HttpContext?.User?.Identity?.Name,
+                UserName = _access.HttpContext?.User?.Identity?.Name 
+                    ?? _access.HttpContext?.User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+                    ?? _access.HttpContext?.User?.FindFirst("sub")?.Value,
                 Timestamp = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, TimeZoneInfo.FindSystemTimeZoneById("India Standard Time"))
             };
 
             // Send in the background without blocking the app
-            _ = Task.Run(() => Http.PostAsJsonAsync(_url, log));
+            _ = Task.Run(() => Http.PostAsJsonAsync($"{_url.TrimEnd('/')}/logs", log));
         }
     }
 

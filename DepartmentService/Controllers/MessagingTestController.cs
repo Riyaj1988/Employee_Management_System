@@ -22,7 +22,7 @@ namespace DepartmentService.Controllers
         {
             @event.EventType = EmployeeEventType.Created;
             _logger.LogInformation("Simulating CREATE event for Employee {EmployeeId} in Dept {Dept}", @event.EmployeeId, @event.DepartmentId);
-            
+
             await _publishEndpoint.Publish(@event);
 
             return Ok(new { Message = "Create event published", Event = @event });
@@ -33,7 +33,7 @@ namespace DepartmentService.Controllers
         {
             @event.EventType = EmployeeEventType.Updated;
             _logger.LogInformation("Simulating UPDATE event for Employee {EmployeeId} in Dept {Dept}", @event.EmployeeId, @event.DepartmentId);
-            
+
             await _publishEndpoint.Publish(@event);
 
             return Ok(new { Message = "Update event published", Event = @event });
@@ -44,7 +44,7 @@ namespace DepartmentService.Controllers
         {
             @event.EventType = EmployeeEventType.Deleted;
             _logger.LogInformation("Simulating DELETE event for Employee {EmployeeId} from Dept {Dept}", @event.EmployeeId, @event.DepartmentId);
-            
+
             await _publishEndpoint.Publish(@event);
 
             return Ok(new { Message = "Delete event published", Event = @event });

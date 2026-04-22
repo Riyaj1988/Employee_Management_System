@@ -32,7 +32,9 @@ namespace Shared.Logging
             if (string.IsNullOrWhiteSpace(log.CorrelationId))
                 log.CorrelationId = _httpContextAccessor.HttpContext?.TraceIdentifier ?? Guid.NewGuid().ToString();
 
-            log.UserName ??= _httpContextAccessor.HttpContext?.User?.Identity?.Name;
+            log.UserName ??= _httpContextAccessor.HttpContext?.User?.Identity?.Name 
+                ?? _httpContextAccessor.HttpContext?.User?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+                ?? _httpContextAccessor.HttpContext?.User?.FindFirst("sub")?.Value;
 
             try
             {
