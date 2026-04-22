@@ -15,6 +15,16 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
 
+// Register Logging EARLY to ensure other services can use it
+builder.AddCentralLogging("EmployeeService");
+builder.Logging.AddCentralLogger(
+    serviceName: "EmployeeService",
+    loggingUrl: builder.Configuration["LoggingServiceUrl"]!
+);
+Console.WriteLine($"[STARTUP] Logging Service URL: {builder.Configuration["LoggingServiceUrl"]}");
+
+
+
 builder.Services.AddDbContext<EmployeeDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("Database")));
 
@@ -29,8 +39,12 @@ builder.Services.AddMassTransit(x =>
     x.AddConsumer<EmployeeEventConsumer>();
 
     x.UsingInMemory((context, cfg) =>
-
     {
+        cfg.ReceiveEndpoint("employee-event-queue", e =>
+        {
+            e.ConfigureConsumer<EmployeeEventConsumer>(context);
+        });
+
         cfg.ConfigureEndpoints(context);
     });
 });
@@ -90,13 +104,9 @@ builder.Services.AddSwaggerGen(c =>
         }
     });
 });
-builder.AddCentralLogging("EmployeeService");
-builder.Logging.AddCentralLogger(
-    serviceName: "EmployeeService",
-    loggingUrl: builder.Configuration["LoggingServiceUrl"]!
-);
 
 var app = builder.Build();
+
 
 app.UseSwagger();
 app.UseSwaggerUI();

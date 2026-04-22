@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using Shared.Utilities;
 
 namespace DepartmentService.Domain.Entities;
 
@@ -11,7 +12,7 @@ public class DepartmentStats
 
     public int EmployeeCount { get; set; } = 0;
 
-    public DateTime LastUpdated { get; set; } = DateTime.UtcNow;
+    public DateTime LastUpdated { get; set; } = TimeHelper.GetIstNow();
 
     // Navigation property
     public virtual Department? Department { get; set; }

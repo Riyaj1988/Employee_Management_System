@@ -11,7 +11,7 @@ namespace Shared.Logging
     {
         public static WebApplicationBuilder AddCentralLogging(this WebApplicationBuilder builder, string serviceName)
         {
-            var loggingUrl = builder.Configuration["LoggingServiceUrl"] ?? "https://localhost:7158";
+            var loggingUrl = builder.Configuration["LoggingServiceUrl"] ?? "http://localhost:5017";
 
             // 1. Add HttpContextAccessor for CorrelationId and UserName tracking
             builder.Services.AddHttpContextAccessor();

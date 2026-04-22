@@ -3,6 +3,7 @@ using Shared.DTOs;
 using DepartmentService.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using DepartmentService.Domain.Entities;
+using Shared.Utilities;
 
 namespace DepartmentService.Infrastructure.Messaging
 {
@@ -20,12 +21,21 @@ namespace DepartmentService.Infrastructure.Messaging
         public async Task Consume(ConsumeContext<EmployeeEvent> context)
         {
             var employeeData = context.Message;
-            
-            _logger.LogInformation(">>> Received Employee Event: {Action} for Employee ID {ID}", 
-                employeeData.EventType, employeeData.EmployeeId);
+
+            _logger.LogInformation(">>> [EVENT RECEIVED] Employee Event: {Action} for Employee ID {ID}, Dept: {DeptId}",
+                employeeData.EventType, employeeData.EmployeeId, employeeData.DepartmentId);
 
             try
             {
+                var departmentExists = await _dbContext.Departments.AnyAsync(d => d.DepartmentId == employeeData.DepartmentId);
+
+                if (!departmentExists)
+                {
+                    _logger.LogWarning("!!! [CRITICAL] Stats cannot be updated. Department {DeptId} does not exist in DepartmentDb.",
+                        employeeData.DepartmentId);
+                    return; // Stop here to avoid a Foreign Key exception
+                }
+
                 // 1. LOOK for the department statistics in our database.
                 var stats = await _dbContext.DepartmentStats
                     .FirstOrDefaultAsync(s => s.DepartmentId == employeeData.DepartmentId);
@@ -33,6 +43,7 @@ namespace DepartmentService.Infrastructure.Messaging
                 // 2. CREATE stats if they don't exist yet for this department.
                 if (stats == null)
                 {
+                    _logger.LogInformation(">>> Creating new Stats record for Department {DeptId}", employeeData.DepartmentId);
                     stats = new DepartmentStats
                     {
                         DepartmentId = employeeData.DepartmentId,
@@ -56,14 +67,14 @@ namespace DepartmentService.Infrastructure.Messaging
                 stats.LastUpdated = DateTime.UtcNow;
                 await _dbContext.SaveChangesAsync();
 
-                _logger.LogInformation(">>> Successfully updated Stats for Department {DeptId}. New Count: {Count}", 
+                _logger.LogInformation(">>> [SUCCESS] Updated Stats for Department {DeptId}. New Count: {Count}",
                     employeeData.DepartmentId, stats.EmployeeCount);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error occurred while processing message for Department {DeptId}", employeeData.DepartmentId);
                 // Throwing the error lets the system know it failed (so it can retry later).
-                throw; 
+                throw;
             }
         }
     }
