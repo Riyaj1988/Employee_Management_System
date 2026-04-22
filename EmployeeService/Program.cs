@@ -1,8 +1,11 @@
-using EmployeeService.Data;
+﻿using EmployeeService.Data;
 using Microsoft.EntityFrameworkCore;
 using Shared.Logging;
 using Shared.Middleware;
 using MassTransit;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
 using DepartmentService.Infrastructure.Persistence;
 using DepartmentService.Infrastructure.Messaging;
 
@@ -25,6 +28,31 @@ builder.Services.AddMassTransit(x =>
     });
 });
 
+
+builder.Services
+    .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidIssuer = builder.Configuration["Jwt:Issuer"],
+
+            ValidateAudience = true,
+            ValidAudience = builder.Configuration["Jwt:Audience"],
+
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = new SymmetricSecurityKey(
+                Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!)
+            ),
+
+            ValidateLifetime = true
+        };
+    });
+builder.Services.AddAuthorization();
+
+
+
 builder.Services.AddSwaggerGen();
 builder.AddCentralLogging("EmployeeService");
 builder.Logging.AddCentralLogger(
@@ -37,6 +65,10 @@ var app = builder.Build();
 app.UseSwagger();
 app.UseSwaggerUI();
 app.UseMiddleware<CorrelationIdMiddleware>();
+
+app.UseAuthentication();
+app.UseAuthorization();
+
 
 app.MapControllers();
 app.Run();
