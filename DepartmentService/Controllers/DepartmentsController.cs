@@ -9,7 +9,7 @@ using Microsoft.AspNetCore.Authorization;
 
 namespace DepartmentService.Controllers;
 
-[Route("api/[controller]")]
+[Route("departments")]
 [ApiController]
 [Authorize]
 public class DepartmentsController : ControllerBase

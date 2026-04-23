@@ -10,6 +10,10 @@ using Shared.Logging;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddCentralLogging("AuthService");
+builder.Logging.AddCentralLogger(
+    serviceName: "AuthService",
+    loggingUrl: builder.Configuration["LoggingServiceUrl"]!
+);
 
 // Add services to the container
 Console.WriteLine(builder.Configuration["Jwt:Key"]);

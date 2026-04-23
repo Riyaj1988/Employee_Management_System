@@ -15,4 +15,6 @@ public class EmployeeEvent
     public decimal Salary { get; set; }
     public EmployeeEventType EventType { get; set; }
     public DateTime Timestamp { get; set; } = DateTime.UtcNow;
+    public string? InitiatedBy { get; set; }
+    public string? CorrelationId { get; set; }
 }

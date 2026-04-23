@@ -5,22 +5,41 @@ using Microsoft.EntityFrameworkCore;
 using DepartmentService.Domain.Entities;
 using Shared.Utilities;
 
+using Microsoft.AspNetCore.Http;
+using System.Security.Claims;
+
 namespace DepartmentService.Infrastructure.Messaging
 {
     public class EmployeeEventConsumer : IConsumer<EmployeeEvent>
     {
         private readonly DepartmentDbContext _dbContext;
         private readonly ILogger<EmployeeEventConsumer> _logger;
+        private readonly IHttpContextAccessor _httpContextAccessor;
 
-        public EmployeeEventConsumer(DepartmentDbContext dbContext, ILogger<EmployeeEventConsumer> logger)
+        public EmployeeEventConsumer(
+            DepartmentDbContext dbContext, 
+            ILogger<EmployeeEventConsumer> logger,
+            IHttpContextAccessor httpContextAccessor)
         {
             _dbContext = dbContext;
             _logger = logger;
+            _httpContextAccessor = httpContextAccessor;
         }
 
         public async Task Consume(ConsumeContext<EmployeeEvent> context)
         {
             var employeeData = context.Message;
+
+            // Mock the HttpContext so the CentralLogger picks up the user and correlation ID
+            var claims = new List<Claim>();
+            if (!string.IsNullOrEmpty(employeeData.InitiatedBy))
+                claims.Add(new Claim(ClaimTypes.Name, employeeData.InitiatedBy));
+
+            var identity = new ClaimsIdentity(claims, "EventAuth");
+            _httpContextAccessor.HttpContext = new DefaultHttpContext { User = new ClaimsPrincipal(identity) };
+            
+            if (!string.IsNullOrEmpty(employeeData.CorrelationId))
+                _httpContextAccessor.HttpContext.Request.Headers["X-Correlation-Id"] = employeeData.CorrelationId;
 
             _logger.LogInformation(">>> [EVENT RECEIVED] Employee Event: {Action} for Employee ID {ID}, Dept: {DeptId}",
                 employeeData.EventType, employeeData.EmployeeId, employeeData.DepartmentId);

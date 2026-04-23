@@ -5,6 +5,7 @@ using Shared.DTOs;
 using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.AspNetCore.Http;
 using Moq;
 using FluentAssertions;
 
@@ -14,6 +15,7 @@ public class EmployeeEventConsumerTests : IDisposable
 {
     private readonly DepartmentDbContext _context;
     private readonly Mock<ILogger<EmployeeEventConsumer>> _loggerMock;
+    private readonly Mock<IHttpContextAccessor> _httpContextAccessorMock;
     private readonly EmployeeEventConsumer _consumer;
 
     public EmployeeEventConsumerTests()
@@ -24,7 +26,8 @@ public class EmployeeEventConsumerTests : IDisposable
 
         _context = new DepartmentDbContext(options);
         _loggerMock = new Mock<ILogger<EmployeeEventConsumer>>();
-        _consumer = new EmployeeEventConsumer(_context, _loggerMock.Object);
+        _httpContextAccessorMock = new Mock<IHttpContextAccessor>();
+        _consumer = new EmployeeEventConsumer(_context, _loggerMock.Object, _httpContextAccessorMock.Object);
     }
 
     [Fact]
@@ -102,9 +105,49 @@ public class EmployeeEventConsumerTests : IDisposable
         updatedStats!.EmployeeCount.Should().Be(0);
     }
 
+    [Fact]
+    public async Task Consume_ShouldUpdateBothCounts_WhenEmployeeTransfered()
+    {
+        var oldDeptId = 10;
+        var newDeptId = 20;
+
+        _context.Departments.AddRange(
+            new Department { DepartmentId = oldDeptId, Name = "Old Dept" },
+            new Department { DepartmentId = newDeptId, Name = "New Dept" }
+        );
+
+        _context.DepartmentStats.AddRange(
+            new DepartmentStats { DepartmentId = oldDeptId, EmployeeCount = 5 },
+            new DepartmentStats { DepartmentId = newDeptId, EmployeeCount = 3 }
+        );
+
+        await _context.SaveChangesAsync();
+
+        var message = new EmployeeEvent 
+        { 
+            DepartmentId = newDeptId, 
+            OldDepartmentId = oldDeptId, 
+            EmployeeId = 500, 
+            EventType = EmployeeEventType.Updated 
+        };
+
+        var contextMock = new Mock<ConsumeContext<EmployeeEvent>>();
+        contextMock.Setup(c => c.Message).Returns(message);
+
+        await _consumer.Consume(contextMock.Object);
+
+        var oldStats = await _context.DepartmentStats.FindAsync(oldDeptId);
+        var newStats = await _context.DepartmentStats.FindAsync(newDeptId);
+
+        oldStats!.EmployeeCount.Should().Be(4);
+        newStats!.EmployeeCount.Should().Be(4);
+    }
+
+
     public void Dispose()
     {
         _context.Database.EnsureDeleted();
         _context.Dispose();
     }
 }
+

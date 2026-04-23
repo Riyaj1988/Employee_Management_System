@@ -384,3 +384,6 @@ appsettings.Local.json
 [Oo]bj/
 CENTRALIZED_LOGGING_GUIDE.md
 rabbitMq.txt
+run-all.bat
+start-services.ps1
+
