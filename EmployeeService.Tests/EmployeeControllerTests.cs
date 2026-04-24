@@ -27,7 +27,6 @@ namespace EmployeeService.Tests
         [SetUp]
         public void Setup()
         {
-
             var options = new DbContextOptionsBuilder<EmployeeDbContext>()
                 .UseInMemoryDatabase(Guid.NewGuid().ToString())
                 .Options;
@@ -44,7 +43,6 @@ namespace EmployeeService.Tests
                 _logSenderMock.Object,
                 _loggerMock.Object
             );
-
 
             var user = new ClaimsPrincipal(
                 new ClaimsIdentity(
@@ -72,13 +70,14 @@ namespace EmployeeService.Tests
             _dbContext.Dispose();
         }
 
-
         [Test]
         public async Task CreateEmployee_WithValidData_ReturnsCreatedAndPersistsEmployee()
         {
+           
             var dto = new EmployeeCreateDto(
-                "Amit Sharma",
-                "amit.sharma@company.com",
+                FirstName: "Amit",
+                LastName: "Sharma",
+                Email: "amit.sharma@company.com",
                 DepartmentId: 10,
                 Salary: 65000
             );
@@ -90,21 +89,24 @@ namespace EmployeeService.Tests
             Assert.That(_dbContext.Employees.Count(), Is.EqualTo(1));
 
             var employee = _dbContext.Employees.First();
-            Assert.That(employee.Name, Is.EqualTo("Amit Sharma"));
+            Assert.That(employee.FirstName, Is.EqualTo("Amit"));
+            Assert.That(employee.LastName, Is.EqualTo("Sharma"));
+            Assert.That(employee.IsActive, Is.True);
             Assert.That(employee.DepartmentId, Is.EqualTo(10));
         }
-
-
 
         [Test]
         public async Task GetEmployeeById_WhenEmployeeExists_ReturnsEmployee()
         {
             var employee = new Employee
             {
-                Name = "Priya Verma",
+                FirstName = "Priya",
+                LastName = "Verma",
                 Email = "priya.verma@company.com",
                 DepartmentId = 20,
-                Salary = 72000
+                Salary = 72000,
+                HireDate = DateTime.UtcNow,
+                IsActive = true
             };
 
             _dbContext.Employees.Add(employee);
@@ -115,49 +117,53 @@ namespace EmployeeService.Tests
             Assert.That(result, Is.Not.Null);
 
             var dto = result!.Value as EmployeeReadDto;
-            Assert.That(dto!.Name, Is.EqualTo("Priya Verma"));
-            Assert.That(dto.DepartmentId, Is.EqualTo(20));
+            Assert.That(dto!.FirstName, Is.EqualTo("Priya"));
+            Assert.That(dto.LastName, Is.EqualTo("Verma"));
+            Assert.That(dto.IsActive, Is.True);
         }
 
-
         [Test]
-        public async Task UpdateEmployee_WithDepartmentChange_PublishesUpdatedEvent()
+        public async Task UpdateEmployee_WithDetailsAndStatusChange_PublishesUpdatedEvent()
         {
             var employee = new Employee
             {
-                Name = "Rohit Kumar",
+                FirstName = "Rohit",
+                LastName = "Kumar",
                 Email = "rohit.kumar@company.com",
                 DepartmentId = 30,
-                Salary = 58000
+                Salary = 58000,
+                IsActive = true
             };
 
             _dbContext.Employees.Add(employee);
             await _dbContext.SaveChangesAsync();
 
+            
             var updateDto = new EmployeeUpdateDto(
-                "Rohit Kumar",
-                "rohit.kumar@company.com",
+                FirstName: "Rohit",
+                LastName: "Kumar",
+                Email: "rohit.kumar@company.com",
                 DepartmentId: 40,
-                Salary: 75000
+                Salary: 75000,
+                IsActive: false 
             );
 
             var result = await _controller.Update(employee.Id, updateDto);
 
             Assert.That(result, Is.TypeOf<NoContentResult>());
 
-            var updatedEmployee = _dbContext.Employees.First();
-            Assert.That(updatedEmployee.DepartmentId, Is.EqualTo(40));
-            Assert.That(updatedEmployee.Salary, Is.EqualTo(75000));
+            var updatedEmployee = await _dbContext.Employees.FindAsync(employee.Id);
+            Assert.That(updatedEmployee!.DepartmentId, Is.EqualTo(40));
+            Assert.That(updatedEmployee.IsActive, Is.False);
         }
-
-
 
         [Test]
         public async Task DeleteEmployee_RemovesEmployeeAndReturnsNoContent()
         {
             var employee = new Employee
             {
-                Name = "Neha Singh",
+                FirstName = "Neha",
+                LastName = "Singh",
                 Email = "neha.singh@company.com",
                 DepartmentId = 50,
                 Salary = 50000
@@ -172,8 +178,6 @@ namespace EmployeeService.Tests
             Assert.That(_dbContext.Employees.Count(), Is.EqualTo(0));
         }
 
-
-
         [Test]
         public async Task GetEmployee_WithInvalidId_ReturnsNotFound()
         {
@@ -182,14 +186,14 @@ namespace EmployeeService.Tests
             Assert.That(result, Is.TypeOf<NotFoundResult>());
         }
 
-
         [Test]
         public async Task CreateEmployee_WithInvalidModel_ReturnsBadRequest()
         {
-            _controller.ModelState.AddModelError("Name", "Name is required");
+            _controller.ModelState.AddModelError("FirstName", "First Name is required");
 
             var dto = new EmployeeCreateDto(
                 "",
+                "Sharma",
                 "invalid-email",
                 DepartmentId: 0,
                 Salary: -100
@@ -200,13 +204,12 @@ namespace EmployeeService.Tests
             Assert.That(result, Is.TypeOf<BadRequestObjectResult>());
         }
 
-
-
         [Test]
         public async Task EmployeeCount_ShouldIncreaseOnCreate_AndDecreaseOnDelete()
         {
             var dto = new EmployeeCreateDto(
-                "Suresh Reddy",
+                "Suresh",
+                "Reddy",
                 "suresh.reddy@company.com",
                 DepartmentId: 60,
                 Salary: 68000

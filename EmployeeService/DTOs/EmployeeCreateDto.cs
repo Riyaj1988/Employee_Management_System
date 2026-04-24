@@ -2,7 +2,8 @@
 
 namespace EmployeeService.DTOs;
 public record EmployeeCreateDto(
-    [Required] string Name,
+    [Required] string FirstName,
+    [Required] string LastName,
     [Required, EmailAddress] string Email,
     [Range(1, int.MaxValue)] int DepartmentId,
     [Range(0, double.MaxValue)] decimal Salary

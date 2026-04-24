@@ -1,12 +1,14 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
 namespace EmployeeService.DTOs
-{ 
-  public record EmployeeUpdateDto(
-        [Required] string Name,
-        [Required, EmailAddress] string Email,
-        [Range(1, int.MaxValue)] int DepartmentId,
-        [Range(0, double.MaxValue)] decimal Salary
-    );
+{
+    public record EmployeeUpdateDto(
+      [Required] string FirstName,
+      [Required] string LastName,
+      [Required, EmailAddress] string Email,
+      [Range(1, int.MaxValue)] int DepartmentId,
+      [Range(0, double.MaxValue)] decimal Salary,
+      bool IsActive // soft delete
+  );
 
 }

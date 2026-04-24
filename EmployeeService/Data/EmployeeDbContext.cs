@@ -15,20 +15,18 @@ namespace EmployeeService.Data
             modelBuilder.Entity<Employee>(entity =>
             {
                 entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).HasColumnName("EmployeeId"); 
 
-                entity.HasIndex(e => e.Email)
-                      .IsUnique();
+                entity.HasIndex(e => e.Email).IsUnique();
 
-                entity.Property(e => e.Name)
-                      .IsRequired()
-                      .HasMaxLength(100);
+                entity.Property(e => e.FirstName).IsRequired().HasMaxLength(100);
+                entity.Property(e => e.LastName).IsRequired().HasMaxLength(100);
+                entity.Property(e => e.Email).IsRequired().HasMaxLength(150);
 
-                entity.Property(e => e.Email)
-                      .IsRequired()
-                      .HasMaxLength(150);
+                entity.Property(e => e.Salary).HasColumnType("decimal(18,2)");
 
-                entity.Property(e => e.Salary)
-                      .HasColumnType("decimal(18,2)");
+                entity.Property(e => e.HireDate).HasDefaultValueSql("SYSUTCDATETIME()");
+                entity.Property(e => e.IsActive).HasDefaultValue(true);
             });
         }
     }

@@ -40,10 +40,13 @@ namespace EmployeeService.Controllers
             var employees = await _db.Employees
                 .Select(e => new EmployeeReadDto(
                     e.Id,
-                    e.Name,
+                    e.FirstName,
+                    e.LastName,
                     e.Email,
                     e.DepartmentId,
-                    e.Salary))
+                    e.Salary,
+                    e.HireDate,
+                    e.IsActive))
                 .ToListAsync();
 
             return Ok(employees);
@@ -61,10 +64,13 @@ namespace EmployeeService.Controllers
 
             return Ok(new EmployeeReadDto(
                 employee.Id,
-                employee.Name,
+                employee.FirstName,
+                employee.LastName,
                 employee.Email,
                 employee.DepartmentId,
-                employee.Salary));
+                employee.Salary,
+                employee.HireDate,
+                employee.IsActive));
         }
 
         [HttpPost]
@@ -73,21 +79,23 @@ namespace EmployeeService.Controllers
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
-            //var employee = new Employee
             try
             {
                 var employee = new Employee
                 {
-                    Name = dto.Name,
+                    FirstName = dto.FirstName,
+                    LastName = dto.LastName,
                     Email = dto.Email,
                     DepartmentId = dto.DepartmentId,
-                    Salary = dto.Salary
+                    Salary = dto.Salary,
+                    HireDate = DateTime.UtcNow, 
+                    IsActive = true            // Default to active
                 };
 
                 _db.Employees.Add(employee);
                 await _db.SaveChangesAsync();
 
-
+                // Publish Event to Message Broker
                 await _publishEndpoint.Publish(new EmployeeEvent
                 {
                     EmployeeId = employee.Id,
@@ -98,9 +106,9 @@ namespace EmployeeService.Controllers
                     CorrelationId = GetCorrelationId()
                 });
 
-
+                // Manual Centralized Log
                 await _logSender.SendLogAsync(
-                    message: $"Employee created with ID {employee.Id}",
+                    message: $"Employee created: {employee.FirstName} {employee.LastName} (ID: {employee.Id})",
                     logLevel: "Information"
                 );
 
@@ -109,25 +117,25 @@ namespace EmployeeService.Controllers
                     new { id = employee.Id },
                     new EmployeeReadDto(
                         employee.Id,
-                        employee.Name,
+                        employee.FirstName,
+                        employee.LastName,
                         employee.Email,
                         employee.DepartmentId,
-                        employee.Salary));
+                        employee.Salary,
+                        employee.HireDate,
+                        employee.IsActive));
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error occurred while creating employee");
-
                 await _logSender.SendLogAsync(
                     message: "Error occurred while creating employee",
                     logLevel: "Error",
                     exception: ex.ToString()
                 );
-
                 throw;
             }
         }
-
 
         [HttpPut("{id}")]
         public async Task<IActionResult> Update(int id, EmployeeUpdateDto dto)
@@ -144,13 +152,14 @@ namespace EmployeeService.Controllers
 
             var oldDeptId = employee.DepartmentId;
 
-            employee.Name = dto.Name;
+            employee.FirstName = dto.FirstName;
+            employee.LastName = dto.LastName;
             employee.Email = dto.Email;
             employee.DepartmentId = dto.DepartmentId;
             employee.Salary = dto.Salary;
+            employee.IsActive = dto.IsActive; 
 
             await _db.SaveChangesAsync();
-
 
             await _publishEndpoint.Publish(new EmployeeEvent
             {
@@ -164,13 +173,12 @@ namespace EmployeeService.Controllers
             });
 
             await _logSender.SendLogAsync(
-                message: $"Employee updated with ID {employee.Id}",
+                message: $"Employee updated: {employee.FirstName} {employee.LastName} (ID: {employee.Id})",
                 logLevel: "Information"
             );
 
             return NoContent();
         }
-
 
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(int id)
@@ -185,7 +193,6 @@ namespace EmployeeService.Controllers
             _db.Employees.Remove(employee);
             await _db.SaveChangesAsync();
 
-
             await _publishEndpoint.Publish(new EmployeeEvent
             {
                 EmployeeId = employee.Id,
@@ -196,9 +203,8 @@ namespace EmployeeService.Controllers
                 CorrelationId = GetCorrelationId()
             });
 
-
             await _logSender.SendLogAsync(
-                message: $"Employee deleted with ID {employee.Id}",
+                message: $"Employee deleted with ID {id}",
                 logLevel: "Warning"
             );
 
@@ -207,23 +213,15 @@ namespace EmployeeService.Controllers
 
         private string? GetCurrentUsername()
         {
-            return User.Identity?.Name 
-                ?? User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value 
+            return User.Identity?.Name
+                ?? User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
                 ?? User.FindFirst("sub")?.Value;
         }
 
         private string GetCorrelationId()
         {
-            var httpContext = ControllerContext?.HttpContext;
-
-            return httpContext?.Request?.Headers["X-Correlation-Id"].FirstOrDefault()
+            return HttpContext?.Request?.Headers["X-Correlation-Id"].FirstOrDefault()
                    ?? Guid.NewGuid().ToString();
         }
-
     }
 }
-/*return httpContext?.Request?.Headers["X-Correlation-Id"].FirstOrDefault()
-       ?? Guid.NewGuid().ToString();
-}
-}
-}*/
