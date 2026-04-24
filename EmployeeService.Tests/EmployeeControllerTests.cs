@@ -2,192 +2,216 @@ using EmployeeService.Controllers;
 using EmployeeService.Data;
 using EmployeeService.DTOs;
 using EmployeeService.Models;
-// using EmployeeService.Services;
+using MassTransit;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
+using Shared.Logging;
+using System.Security.Claims;
 
-namespace EmployeeService.Tests;
-
-
-[TestFixture]
-public class EmployeeControllerTests
+namespace EmployeeService.Tests
 {
-    private EmployeeDbContext _dbContext = null!;
-    private EmployeeController _controller = null!;
-
-
-    [SetUp]
-    public void Setup()
+    [TestFixture]
+    public class EmployeeControllerTests
     {
-        var options = new DbContextOptionsBuilder<EmployeeDbContext>()
-            .UseInMemoryDatabase(Guid.NewGuid().ToString())
-            .Options;
+        private EmployeeDbContext _dbContext = null!;
+        private EmployeeController _controller = null!;
 
-        _dbContext = new EmployeeDbContext(options);
+        private Mock<IPublishEndpoint> _publishEndpointMock = null!;
+        private Mock<ILogSender> _logSenderMock = null!;
+        private Mock<ILogger<EmployeeController>> _loggerMock = null!;
 
-        // var publisherMock = new Mock<RabbitMqPublisher>(
-        //     Mock.Of<IConfiguration>(),
-        //     Mock.Of<ILogger<RabbitMqPublisher>>());
-
-        // var loggerMock = new Mock<ILogger<EmployeeController>>();
-
-        // _controller = new EmployeeController(
-        //     _dbContext,
-        //     publisherMock.Object,
-        //     loggerMock.Object);
-
-        // ✅ ALWAYS set HttpContext
-        _controller.ControllerContext = new ControllerContext
+        [SetUp]
+        public void Setup()
         {
-            HttpContext = new DefaultHttpContext()
-        };
-    }
+            var options = new DbContextOptionsBuilder<EmployeeDbContext>()
+                .UseInMemoryDatabase(Guid.NewGuid().ToString())
+                .Options;
 
+            _dbContext = new EmployeeDbContext(options);
 
-    [TearDown]
-    public void TearDown()
-    {
-        _dbContext.Dispose();
-    }
+            _publishEndpointMock = new Mock<IPublishEndpoint>();
+            _logSenderMock = new Mock<ILogSender>();
+            _loggerMock = new Mock<ILogger<EmployeeController>>();
 
-    // ✅ CREATE (POST)
-    [Test]
-    public async Task CreateEmployee_ReturnsCreated_AndSavesToDb()
-    {
-        var dto = new EmployeeCreateDto(
-            "John Doe",
-            "john@company.com",
-            1,
-            50000);
+            _controller = new EmployeeController(
+                _dbContext,
+                _publishEndpointMock.Object,
+                _logSenderMock.Object,
+                _loggerMock.Object
+            );
 
-        var result = await _controller.Create(dto) as CreatedAtActionResult;
+            var user = new ClaimsPrincipal(
+                new ClaimsIdentity(
+                    new[]
+                    {
+                        new Claim("sub", "admin.user"),
+                        new Claim(ClaimTypes.Role, "Admin")
+                    },
+                    "TestAuth"
+                )
+            );
 
-        Assert.That(result, Is.Not.Null);
-        Assert.That(result!.StatusCode, Is.EqualTo(201));
-        Assert.That(_dbContext.Employees.Count(), Is.EqualTo(1));
-    }
+            _controller.ControllerContext = new ControllerContext
+            {
+                HttpContext = new DefaultHttpContext { User = user }
+            };
+        }
 
-    // ✅ GET by ID
-    [Test]
-    public async Task GetEmployeeById_ReturnsEmployee()
-    {
-        var employee = new Employee
+        [TearDown]
+        public void TearDown()
         {
-            Name = "Jane",
-            Email = "jane@company.com",
-            DepartmentId = 2,
-            Salary = 60000
-        };
+            _dbContext.Dispose();
+        }
 
-        _dbContext.Employees.Add(employee);
-        await _dbContext.SaveChangesAsync();
 
-        var result = await _controller.GetById(employee.Id) as OkObjectResult;
 
-        Assert.That(result, Is.Not.Null);
-        var returned = result!.Value as EmployeeReadDto;
-
-        Assert.That(returned!.Name, Is.EqualTo("Jane"));
-    }
-
-    // ✅ UPDATE (PUT)
-    [Test]
-    public async Task UpdateEmployee_UpdatesDb_ReturnsNoContent()
-    {
-        var employee = new Employee
+        [Test]
+        public async Task CreateEmployee_WithValidData_ReturnsCreated()
         {
-            Name = "Old",
-            Email = "old@company.com",
-            DepartmentId = 1,
-            Salary = 40000
-        };
+            var dto = new EmployeeCreateDto(
+                "Amit Sharma",
+                "amit.sharma@company.com",
+                DepartmentId: 10,
+                Salary: 65000
+            );
 
-        _dbContext.Employees.Add(employee);
-        await _dbContext.SaveChangesAsync();
+            var result = await _controller.Create(dto) as CreatedAtActionResult;
 
-        var dto = new EmployeeUpdateDto(
-            "Updated",
-            "updated@company.com",
-            3,
-            70000);
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result!.StatusCode, Is.EqualTo(201));
+            Assert.That(_dbContext.Employees.Count(), Is.EqualTo(1));
+        }
 
-        var result = await _controller.Update(employee.Id, dto);
 
-        Assert.That(result, Is.TypeOf<NoContentResult>());
-        Assert.That(_dbContext.Employees.First().Name, Is.EqualTo("Updated"));
-    }
-
-    // ✅ DELETE
-    [Test]
-    public async Task DeleteEmployee_RemovesFromDb()
-    {
-        var employee = new Employee
+        [Test]
+        public async Task GetEmployeeById_WhenEmployeeExists_ReturnsEmployee()
         {
-            Name = "DeleteMe",
-            Email = "delete@company.com",
-            DepartmentId = 1,
-            Salary = 30000
-        };
+            var employee = new Employee
+            {
+                Name = "Priya Verma",
+                Email = "priya.verma@company.com",
+                DepartmentId = 20,
+                Salary = 72000
+            };
 
-        _dbContext.Employees.Add(employee);
-        await _dbContext.SaveChangesAsync();
+            _dbContext.Employees.Add(employee);
+            await _dbContext.SaveChangesAsync();
 
-        var result = await _controller.Delete(employee.Id);
+            var result = await _controller.GetById(employee.Id) as OkObjectResult;
 
-        Assert.That(result, Is.TypeOf<NoContentResult>());
-        Assert.That(_dbContext.Employees.Count(), Is.EqualTo(0));
-    }
+            Assert.That(result, Is.Not.Null);
+            var dto = result!.Value as EmployeeReadDto;
 
-    // ✅ INVALID ID → 404
-    [Test]
-    public async Task GetInvalidEmployee_ReturnsNotFound()
-    {
-        var result = await _controller.GetById(999);
+            Assert.That(dto!.Name, Is.EqualTo("Priya Verma"));
+            Assert.That(dto.Email, Is.EqualTo("priya.verma@company.com"));
+        }
 
-        Assert.That(result, Is.TypeOf<NotFoundResult>());
-    }
 
-    // ✅ VALIDATION FAILURE
-    [Test]
-    public async Task CreateEmployee_InvalidModel_ReturnsBadRequest()
-    {
-        // Arrange
-        _controller.ModelState.AddModelError("Name", "Required");
 
-        var dto = new EmployeeCreateDto(
-            "",
-            "invalid-email",
-            0,
-            -100);
+        [Test]
+        public async Task UpdateEmployee_WithNewDetails_UpdatesRecord()
+        {
+            var employee = new Employee
+            {
+                Name = "Rohit Kumar",
+                Email = "rohit.kumar@company.com",
+                DepartmentId = 30,
+                Salary = 58000
+            };
 
-        // Act
-        var result = await _controller.Create(dto);
+            _dbContext.Employees.Add(employee);
+            await _dbContext.SaveChangesAsync();
 
-        // Assert
-        Assert.That(result, Is.TypeOf<BadRequestObjectResult>());
-    }
+            var updateDto = new EmployeeUpdateDto(
+                "Rohit Kumar",
+                "rohit.kumar@company.com",
+                DepartmentId: 40,
+                Salary: 75000
+            );
 
-    // ✅ DB STATE VERIFICATION
-    [Test]
-    public async Task EmployeeCount_IncreasesOnCreate_DecreasesOnDelete()
-    {
-        var dto = new EmployeeCreateDto(
-            "Counter",
-            "count@company.com",
-            1,
-            45000);
+            var result = await _controller.Update(employee.Id, updateDto);
 
-        await _controller.Create(dto);
-        Assert.That(_dbContext.Employees.Count(), Is.EqualTo(1));
+            Assert.That(result, Is.TypeOf<NoContentResult>());
 
-        var employeeId = _dbContext.Employees.First().Id;
+            var updatedEmployee = _dbContext.Employees.First();
+            Assert.That(updatedEmployee.DepartmentId, Is.EqualTo(40));
+            Assert.That(updatedEmployee.Salary, Is.EqualTo(75000));
+        }
 
-        await _controller.Delete(employeeId);
-        Assert.That(_dbContext.Employees.Count(), Is.EqualTo(0));
+
+
+        [Test]
+        public async Task DeleteEmployee_RemovesEmployeeFromDatabase()
+        {
+            var employee = new Employee
+            {
+                Name = "Neha Singh",
+                Email = "neha.singh@company.com",
+                DepartmentId = 50,
+                Salary = 50000
+            };
+
+            _dbContext.Employees.Add(employee);
+            await _dbContext.SaveChangesAsync();
+
+            var result = await _controller.Delete(employee.Id);
+
+            Assert.That(result, Is.TypeOf<NoContentResult>());
+            Assert.That(_dbContext.Employees.Count(), Is.EqualTo(0));
+        }
+
+
+
+        [Test]
+        public async Task GetEmployee_WithInvalidId_ReturnsNotFound()
+        {
+            var result = await _controller.GetById(9999);
+
+            Assert.That(result, Is.TypeOf<NotFoundResult>());
+        }
+
+
+
+        [Test]
+        public async Task CreateEmployee_WithInvalidModel_ReturnsBadRequest()
+        {
+            _controller.ModelState.AddModelError("Name", "Name is required");
+
+            var dto = new EmployeeCreateDto(
+                "",
+                "invalid-email",
+                DepartmentId: 0,
+                Salary: -1
+            );
+
+            var result = await _controller.Create(dto);
+
+            Assert.That(result, Is.TypeOf<BadRequestObjectResult>());
+        }
+
+
+
+        [Test]
+        public async Task EmployeeCount_ShouldIncreaseAndDecreaseCorrectly()
+        {
+            var dto = new EmployeeCreateDto(
+                "Suresh Reddy",
+                "suresh.reddy@company.com",
+                DepartmentId: 60,
+                Salary: 68000
+            );
+
+            await _controller.Create(dto);
+            Assert.That(_dbContext.Employees.Count(), Is.EqualTo(1));
+
+            var id = _dbContext.Employees.First().Id;
+            await _controller.Delete(id);
+
+            Assert.That(_dbContext.Employees.Count(), Is.EqualTo(0));
+        }
     }
 }
