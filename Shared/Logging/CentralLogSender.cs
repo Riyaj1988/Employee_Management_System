@@ -42,7 +42,7 @@ namespace Shared.Logging
                 // Send in the background so the API stays fast
                 _ = Task.Run(async () => {
                     try {
-                        var response = await _httpClient.PostAsJsonAsync("/logs", log);
+                        var response = await _httpClient.PostAsJsonAsync("logs", log);
                         if (!response.IsSuccessStatusCode) {
                              Console.WriteLine($"[LOG ERROR] Logging Service returned {response.StatusCode} for: {log.Message}");
                         }

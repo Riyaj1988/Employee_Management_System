@@ -87,16 +87,18 @@ namespace EmployeeService.Controllers
                 _db.Employees.Add(employee);
                 await _db.SaveChangesAsync();
 
-                
+
                 await _publishEndpoint.Publish(new EmployeeEvent
                 {
                     EmployeeId = employee.Id,
                     DepartmentId = employee.DepartmentId,
                     Salary = employee.Salary,
-                    EventType = EmployeeEventType.Created
+                    EventType = EmployeeEventType.Created,
+                    InitiatedBy = GetCurrentUsername(),
+                    CorrelationId = GetCorrelationId()
                 });
 
-               
+
                 await _logSender.SendLogAsync(
                     message: $"Employee created with ID {employee.Id}",
                     logLevel: "Information"
@@ -156,7 +158,9 @@ namespace EmployeeService.Controllers
                 DepartmentId = employee.DepartmentId,
                 OldDepartmentId = oldDeptId,
                 Salary = employee.Salary,
-                EventType = EmployeeEventType.Updated
+                EventType = EmployeeEventType.Updated,
+                InitiatedBy = GetCurrentUsername(),
+                CorrelationId = GetCorrelationId()
             });
 
             await _logSender.SendLogAsync(
@@ -187,7 +191,9 @@ namespace EmployeeService.Controllers
                 EmployeeId = employee.Id,
                 DepartmentId = employee.DepartmentId,
                 Salary = 0,
-                EventType = EmployeeEventType.Deleted
+                EventType = EmployeeEventType.Deleted,
+                InitiatedBy = GetCurrentUsername(),
+                CorrelationId = GetCorrelationId()
             });
 
 
@@ -197,6 +203,13 @@ namespace EmployeeService.Controllers
             );
 
             return NoContent();
+        }
+
+        private string? GetCurrentUsername()
+        {
+            return User.Identity?.Name 
+                ?? User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value 
+                ?? User.FindFirst("sub")?.Value;
         }
 
         private string GetCorrelationId()
@@ -209,8 +222,8 @@ namespace EmployeeService.Controllers
 
     }
 }
-            /*return httpContext?.Request?.Headers["X-Correlation-Id"].FirstOrDefault()
-                   ?? Guid.NewGuid().ToString();
-        }
-    }
+/*return httpContext?.Request?.Headers["X-Correlation-Id"].FirstOrDefault()
+       ?? Guid.NewGuid().ToString();
+}
+}
 }*/

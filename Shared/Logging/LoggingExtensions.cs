@@ -20,7 +20,9 @@ namespace Shared.Logging
             // We register the HttpClient with a specific name
             builder.Services.AddHttpClient("CentralInternal", client =>
             {
-                client.BaseAddress = new Uri(loggingUrl);
+                // Ensure the URL ends with a / so that relative paths (like "logs") work correctly
+                var baseUri = loggingUrl.EndsWith("/") ? loggingUrl : loggingUrl + "/";
+                client.BaseAddress = new Uri(baseUri);
             });
 
             // Register ILogSender with a factory that uses that client and the service name
